@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Доска заданий — Бухгалтерия</title>
+<style>
+:root{
+  --bg:#f4f5f7; --surface:#ffffff; --surface-2:#eef0f3; --border:#dde1e6;
+  --text:#1c2126; --text-dim:#5b6470; --accent:#3b5bfd; --accent-dim:#e8ecff;
+  --green:#1a9e5c; --green-bg:#e4f7ec; --amber:#b9790a; --amber-bg:#fdf2df;
+  --red:#d5372b; --red-bg:#fbe7e5; --blue:#2565c7; --blue-bg:#e6f0fd;
+  --shadow:0 1px 2px rgba(20,20,30,.06), 0 1px 8px rgba(20,20,30,.04);
+  --radius:10px;
+}
+:root[data-theme="dark"]{
+  --bg:#14161a; --surface:#1c1f25; --surface-2:#242830; --border:#31363f;
+  --text:#e8eaed; --text-dim:#9aa2b0; --accent:#7b93ff; --accent-dim:#26305c;
+  --green:#4fd399; --green-bg:#123526; --amber:#e3a53d; --amber-bg:#3a2c10;
+  --red:#f27a6e; --red-bg:#3d1a17; --blue:#6fa4ef; --blue-bg:#132a47;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 1px 8px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:14px}
+button,select,input,textarea{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer}
+.hidden{display:none !important}
+
+/* Header */
+header.topbar{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:16px;margin-right:8px;white-space:nowrap}
+.tabs{display:flex;gap:4px;background:var(--surface-2);padding:3px;border-radius:8px}
+.tabs button{border:none;background:transparent;padding:7px 14px;border-radius:6px;color:var(--text-dim);font-weight:600}
+.tabs button.active{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+.spacer{flex:1}
+.icon-btn{border:1px solid var(--border);background:var(--surface);border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center}
+.icon-btn:hover{background:var(--surface-2)}
+.btn-primary{background:var(--accent);color:#fff;border:none;padding:9px 16px;border-radius:8px;font-weight:600}
+.btn-primary:hover{opacity:.9}
+.btn-secondary{background:var(--surface);border:1px solid var(--border);padding:9px 14px;border-radius:8px;font-weight:600;color:var(--text)}
+.btn-secondary:hover{background:var(--surface-2)}
+
+/* Filters row */
+.filters{padding:12px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--bg)}
+.filters select{padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface)}
+.filters .label{color:var(--text-dim);font-size:12px}
+
+/* Stats bar */
+.stats-bar{display:flex;gap:10px;padding:14px 20px;flex-wrap:wrap}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;min-width:120px;box-shadow:var(--shadow)}
+.stat-card .n{font-size:22px;font-weight:700}
+.stat-card .l{color:var(--text-dim);font-size:12px;margin-top:2px}
+
+main{padding:0 20px 40px}
+
+/* Board */
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:start}
+@media (max-width:900px){.board{grid-template-columns:1fr}}
+.column{background:var(--surface-2);border-radius:var(--radius);padding:10px;min-height:120px}
+.column-head{display:flex;justify-content:space-between;align-items:center;padding:4px 6px 10px;font-weight:700}
+.column-head .cnt{color:var(--text-dim);font-weight:600;font-size:12px}
+.column.dragover{outline:2px dashed var(--accent);outline-offset:-4px}
+.card-list{display:flex;flex-direction:column;gap:8px;min-height:40px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;box-shadow:var(--shadow);cursor:grab}
+.card:active{cursor:grabbing}
+.card.overdue{border-color:var(--red);background:var(--red-bg)}
+.card .title{font-weight:600;margin-bottom:6px}
+.card .meta{display:flex;justify-content:space-between;align-items:center;color:var(--text-dim);font-size:12px;gap:8px}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.badge.dept-ca{background:var(--blue-bg);color:var(--blue)}
+.badge.dept-filial{background:var(--accent-dim);color:var(--accent)}
+.badge.overdue{background:var(--red-bg);color:var(--red)}
+.badge.done{background:var(--green-bg);color:var(--green)}
+.comment-flag{color:var(--accent)}
+.empty-hint{color:var(--text-dim);font-size:12px;padding:10px;text-align:center}
+
+/* overdue flat list */
+.flat-list{display:flex;flex-direction:column;gap:8px;max-width:700px}
+
+/* Modal */
+.modal-backdrop{position:fixed;inset:0;background:rgba(10,12,16,.5);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal{background:var(--surface);border-radius:12px;max-width:560px;width:100%;max-height:88vh;overflow:auto;padding:22px;box-shadow:var(--shadow)}
+.modal h2{margin:0 0 14px;font-size:18px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:5px;font-weight:600}
+.field input,.field select,.field textarea{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg)}
+.field textarea{resize:vertical;min-height:60px}
+.error-text{color:var(--red);font-size:12px;margin-top:4px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.modal-close{position:sticky;top:0;float:right}
+
+.comments{border-top:1px solid var(--border);margin-top:16px;padding-top:14px}
+.comment{background:var(--surface-2);border-radius:8px;padding:8px 10px;margin-bottom:8px}
+.comment .c-head{display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-bottom:4px}
+.no-comments{color:var(--text-dim);font-size:13px}
+
+/* Weekly */
+.week-nav{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.week-nav .range{font-weight:700}
+.weekly-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+@media (max-width:900px){.weekly-grid{grid-template-columns:repeat(2,1fr)}}
+.dept-breakdown{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+@media (max-width:700px){.dept-breakdown{grid-template-columns:1fr}}
+.progress-outer{background:var(--border);border-radius:20px;height:8px;overflow:hidden;margin-top:8px}
+.progress-inner{background:var(--green);height:100%}
+.two-col-lists{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:700px){.two-col-lists{grid-template-columns:1fr}}
+.list-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.list-panel h3{margin:0 0 10px;font-size:14px}
+.list-row{display:flex;justify-content:space-between;padding:8px 6px;border-radius:6px;cursor:pointer;font-size:13px}
+.list-row:hover{background:var(--surface-2)}
+.list-row .name{color:var(--text-dim)}
+
+/* Employee view */
+.employee-select-wrap{max-width:420px;margin-bottom:20px}
+.profile-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;display:flex;gap:16px;align-items:center;margin-bottom:18px;box-shadow:var(--shadow)}
+.avatar{width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex-shrink:0}
+.profile-name{font-weight:700;font-size:16px}
+.profile-dept{color:var(--text-dim);font-size:13px;margin-top:2px}
+.emp-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+@media (max-width:700px){.emp-stats{grid-template-columns:repeat(2,1fr)}}
+.emp-progress{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:18px}
+table.task-table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+table.task-table th{text-align:left;padding:10px 12px;background:var(--surface-2);font-size:12px;color:var(--text-dim)}
+table.task-table td{padding:10px 12px;border-top:1px solid var(--border);font-size:13px}
+table.task-table tr.rowclick{cursor:pointer}
+table.task-table tr.rowclick:hover{background:var(--surface-2)}
+.placeholder{color:var(--text-dim);padding:40px;text-align:center}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- Constants ---------- */
+var STATUSES = [
+  {id:"new", label:"Новое"},
+  {id:"in_progress", label:"В работе"},
+  {id:"review", label:"На проверке"},
+  {id:"done", label:"Выполнено"}
+];
+var STATUS_LABEL = {};
+STATUSES.forEach(function(s){ STATUS_LABEL[s.id]=s.label; });
+STATUS_LABEL.overdue = "Просрочено";
+
+var BRANCHES = ["Алматы","Астана","Шымкент","Караганда","Актобе","Атырау","Павлодар","Костанай"];
+
+/* ---------- Seed data ---------- */
+function makeEmployees(){
+  var caNames = [
+    "Ахметова Алия Серикбековна","Досжанов Ерлан Талгатович","Сейтова Гульнара Максатовна",
+    "Байжанов Нурлан Кайратович","Тлеубердина Жанар Оразовна","Кенжебаев Дамир Ануарович",
+    "Омарова Динара Бекболатовна","Смагулов Ринат Женисович"
+  ];
+  var filialFirst = ["Абенова","Жумабеков","Сарсенова","Кузембаев","Оспанова","Тулеген","Рахимова","Бектасов",
+    "Нурланова","Есимов","Тажибаева","Кожахметов","Айткалиева","Сериков","Мұратова","Дюсенов",
+    "Калиева","Жаксылыков","Оразбекова","Мукашев","Байгабулова","Токтаров","Ибраева","Сагындыков"];
+  var employees = [];
+  var id = 1;
+  for (var i=0;i<caNames.length;i++){
+    employees.push({id:"e"+(id++), name:caNames[i], department:"CA", branch:null});
+  }
+  for (var j=0;j<filialFirst.length;j++){
+    var branch = BRANCHES[j % BRANCHES.length];
+    employees.push({id:"e"+(id++), name:filialFirst[j]+" (бухгалтер)", department:"Filial", branch:branch});
+  }
+  return employees;
+}
+
+function initials(fullName){
+  var parts = fullName.split(" ").filter(Boolean);
+  var res = "";
+  for (var i=0;i<Math.min(2,parts.length);i++){ res += parts[i][0]; }
+  return res.toUpperCase();
+}
+
+function fmtDate(d){
+  var dt = (d instanceof Date) ? d : new Date(d+"T00:00:00");
+  var dd = String(dt.getDate()).padStart(2,"0");
+  var mm = String(dt.getMonth()+1).padStart(2,"0");
+  return dd+"."+mm+"."+dt.getFullYear();
+}
+function toISODate(d){
+  var dd = String(d.getDate()).padStart(2,"0");
+  var mm = String(d.getMonth()+1).padStart(2,"0");
+  return d.getFullYear()+"-"+mm+"-"+dd;
+}
+function todayISO(){ return toISODate(new Date()); }
+function addDays(iso, n){
+  var d = new Date(iso+"T00:00:00");
+  d.setDate(d.getDate()+n);
+  return toISODate(d);
+}
+
+function makeTasks(employees){
+  var titles = [
+    "Сверка авансовых отчётов","Подготовка справки 2-НДФЛ","Сдача декларации по НДС",
+    "Проверка кассовых документов","Начисление заработной платы","Инвентаризация ОС",
+    "Согласование актов сверки","Формирование бухгалтерского баланса","Расчёт налога на имущество",
+    "Обработка первичной документации","Сверка с контрагентом","Подготовка к аудиторской проверке",
+    "Списание материалов","Контроль дебиторской задолженности","Отчёт по командировочным расходам",
+    "Проверка табеля учёта рабочего времени","Формирование платёжных поручений","Закрытие месяца",
+    "Сверка расчётов с бюджетом","Подготовка пояснительной записки"
+  ];
+  var descriptions = [
+    "Требуется провести сверку и предоставить отчёт руководителю до указанного срока.",
+    "Плановая регламентная задача, выполняется ежемесячно согласно графику.",
+    "Срочная задача по запросу руководства, приоритетное выполнение.",
+    "Стандартная процедура закрытия периода, требуется внимательность к деталям."
+  ];
+  var tasks = [];
+  var id = 1;
+  var offsets = [-6,-4,-2,-1,0,1,2,3,4,5,7,9,12,-3,-5,0,1,2,3,-1,4,6,-2,1,0,3,-7,2,5,-1,8,1,0,-2,3,6,1,-4,2,0];
+  var statusCycle = ["new","in_progress","review","done"];
+  for (var i=0;i<offsets.length;i++){
+    var emp = employees[i % employees.length];
+    var due = addDays(todayISO(), offsets[i]);
+    var baseStatus = statusCycle[i % statusCycle.length];
+    if (offsets[i] < 0 && baseStatus === "done" && i % 3 === 0){
+      baseStatus = "in_progress";
+    }
+    var comments = [];
+    if (i % 3 === 0){
+      comments.push({id:"c"+i+"_1", author: emp.name, date: addDays(todayISO(), Math.min(0, offsets[i])), text:"Работа начата, ожидаю документы от смежного отдела."});
+    }
+    if (i % 7 === 0){
+      comments.push({id:"c"+i+"_2", author: emp.name, date: todayISO(), text:"Возникла задержка из-за отсутствия части первичных документов."});
+    }
+    tasks.push({
+      id: "t"+(id++),
+      title: titles[i % titles.length],
+      description: descriptions[i % descriptions.length],
+      department: emp.department === "CA" ? "CA" : "Filial",
+      assigneeId: emp.id,
+      dueDate: due,
+      status: baseStatus,
+      comments: comments
+    });
+  }
+  return tasks;
+}
+
+/* ---------- State ---------- */
+var STORAGE_KEY = "buh_board_state_v1";
+
+var Employees = makeEmployees();
+var EmployeesById = {};
+Employees.forEach(function(e){ EmployeesById[e.id]=e; });
+
+var state = {
+  tasks: [],
+  ui: {
+    activeTab: "board",
+    theme: "light",
+    filterDept: "all",
+    filterStatus: "all",
+    selectedTaskId: null,
+    selectedEmployeeId: "",
+    weekOffset: 0,
+    showNewTaskModal: false,
+    newTaskErrors: {}
+  }
+};
+
+function loadState(){
+  try{
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (raw){
+      var parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.tasks) && parsed.tasks.length){
+        state.tasks = parsed.tasks;
+      } else {
+        state.tasks = makeTasks(Employees);
+      }
+      if (parsed && parsed.theme) state.ui.theme = parsed.theme;
+    } else {
+      state.tasks = makeTasks(Employees);
+    }
+  } catch(e){
+    state.tasks = makeTasks(Employees);
+  }
+  var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  if (!localStorage.getItem(STORAGE_KEY) && prefersDark){
+    state.ui.theme = "dark";
+  }
+}
+function persist(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({tasks: state.tasks, theme: state.ui.theme}));
+  } catch(e){}
+}
+
+/* ---------- Domain helpers ---------- */
+function getEffectiveStatus(task){
+  if (task.status !== "done" && task.dueDate < todayISO()) return "overdue";
+  return task.status;
+}
+function getTask(id){
+  for (var i=0;i<state.tasks.length;i++){ if (state.tasks[i].id===id) return state.tasks[i]; }
+  return null;
+}
+function getWeekRange(offset){
+  var now = new Date();
+  var day = now.getDay(); // 0 sun .. 6 sat
+  var diffToMonday = (day===0 ? -6 : 1-day);
+  var monday = new Date(now);
+  monday.setDate(now.getDate()+diffToMonday+offset*7);
+  monday.setHours(0,0,0,0);
+  var sunday = new Date(monday);
+  sunday.setDate(monday.getDate()+6);
+  return {start: toISODate(monday), end: toISODate(sunday), startObj:monday, endObj:sunday};
+}
+function tasksInWeek(offset){
+  var r = getWeekRange(offset);
+  return state.tasks.filter(function(t){ return t.dueDate >= r.start && t.dueDate <= r.end; });
+}
+
+/* ---------- Rendering ---------- */
+var app = document.getElementById("app");
+
+function h(tag, attrs, children){
+  var el = document.createElement(tag);
+  attrs = attrs || {};
+  Object.keys(attrs).forEach(function(k){
+    if (k==="class") el.className = attrs[k];
+    else if (k==="html") el.innerHTML = attrs[k];
+    else if (k.indexOf("on")===0) el.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
+    else if (k==="draggable") el.setAttribute("draggable", attrs[k]);
+    else el.setAttribute(k, attrs[k]);
+  });
+  (children||[]).forEach(function(c){
+    if (c==null) return;
+    if (typeof c === "string") el.appendChild(document.createTextNode(c));
+    else el.appendChild(c);
+  });
+  return el;
+}
+
+function render(){
+  document.documentElement.setAttribute("data-theme", state.ui.theme);
+  app.innerHTML = "";
+  app.appendChild(renderHeader());
+  if (state.ui.activeTab === "board"){
+    app.appendChild(renderFilters());
+    app.appendChild(renderStatsBar());
+  }
+  var main = h("main", {}, [renderActiveTab()]);
+  app.appendChild(main);
+  if (state.ui.selectedTaskId){
+    app.appendChild(renderTaskModal(getTask(state.ui.selectedTaskId)));
+  }
+  if (state.ui.showNewTaskModal){
+    app.appendChild(renderNewTaskModal());
+  }
+}
+
+function renderHeader(){
+  var tabs = [
+    {id:"board", label:"Доска"},
+    {id:"weekly", label:"Еженедельный обзор"},
+    {id:"employee", label:"По сотруднику"}
+  ];
+  var tabsWrap = h("div", {class:"tabs"}, tabs.map(function(t){
+    return h("button", {
+      class: state.ui.activeTab===t.id ? "active":"",
+      onclick: function(){ state.ui.activeTab = t.id; render(); }
+    }, [t.label]);
+  }));
+
+  var themeBtn = h("button", {class:"icon-btn", title:"Тема", onclick:function(){
+    state.ui.theme = state.ui.theme==="dark" ? "light":"dark";
+    persist(); render();
+  }}, [state.ui.theme==="dark" ? "☀" : "☾"]);
+
+  var newBtn = null;
+  if (state.ui.activeTab === "board"){
+    newBtn = h("button", {class:"btn-primary", onclick:function(){
+      state.ui.showNewTaskModal = true; render();
+    }}, ["+ Новое задание"]);
+  }
+
+  return h("header", {class:"topbar"}, [
+    h("div", {class:"brand"}, ["📋 Доска заданий — Бухгалтерия"]),
+    tabsWrap,
+    h("div", {class:"spacer"}),
+    newBtn,
+    themeBtn
+  ]);
+}
+
+function renderFilters(){
+  var deptSel = h("select", {onchange:function(e){ state.ui.filterDept=e.target.value; render(); }}, [
+    h("option", {value:"all", selected: state.ui.filterDept==="all"}, ["Все подразделения"]),
+    h("option", {value:"CA", selected: state.ui.filterDept==="CA"}, ["Центральный аппарат"]),
+    h("option", {value:"Filial", selected: state.ui.filterDept==="Filial"}, ["Филиалы"])
+  ]);
+  var statusOptions = [{id:"all", label:"Все статусы"}].concat(STATUSES).concat([{id:"overdue", label:"Просрочено"}]);
+  var statusSel = h("select", {onchange:function(e){ state.ui.filterStatus=e.target.value; render(); }},
+    statusOptions.map(function(s){ return h("option", {value:s.id, selected: state.ui.filterStatus===s.id}, [s.label]); })
+  );
+  return h("div", {class:"filters"}, [
+    h("span", {class:"label"}, ["Фильтры:"]),
+    deptSel, statusSel
+  ]);
+}
+
+function renderStatsBar(){
+  var counts = {new:0, in_progress:0, review:0, done:0, overdue:0};
+  state.tasks.forEach(function(t){ counts[getEffectiveStatus(t)]++; });
+  var items = [
+    {l:"Новое", n:counts.new},
+    {l:"В работе", n:counts.in_progress},
+    {l:"На проверке", n:counts.review},
+    {l:"Выполнено", n:counts.done},
+    {l:"Просрочено", n:counts.overdue}
+  ];
+  return h("div", {class:"stats-bar"}, items.map(function(it){
+    return h("div", {class:"stat-card"}, [
+      h("div", {class:"n"}, [String(it.n)]),
+      h("div", {class:"l"}, [it.l])
+    ]);
+  }));
+}
+
+function filteredTasks(){
+  return state.tasks.filter(function(t){
+    if (state.ui.filterDept !== "all" && t.department !== state.ui.filterDept) return false;
+    if (state.ui.filterStatus !== "all"){
+      if (getEffectiveStatus(t) !== state.ui.filterStatus) return false;
+    }
+    return true;
+  });
+}
+
+function renderActiveTab(){
+  if (state.ui.activeTab === "board") return renderBoard();
+  if (state.ui.activeTab === "weekly") return renderWeekly();
+  if (state.ui.activeTab === "employee") return renderEmployeeView();
+  return h("div", {}, []);
+}
+
+/* ---- Board ---- */
+function taskCard(t){
+  var emp = EmployeesById[t.assigneeId];
+  var eff = getEffectiveStatus(t);
+  var classes = "card" + (eff==="overdue" ? " overdue":"");
+  var card = h("div", {class:classes, draggable:"true", onclick:function(){ state.ui.selectedTaskId=t.id; render(); }}, [
+    h("div", {class:"title"}, [t.title]),
+    h("div", {class:"meta"}, [
+      h("span", {class:"badge " + (t.department==="CA"?"dept-ca":"dept-filial")}, [t.department==="CA"?"ЦА":"Филиал"]),
+      h("span", {}, [emp ? emp.name.split(" ")[0]+" "+emp.name.split(" ")[1]||"" : "—"]),
+    ]),
+    h("div", {class:"meta"}, [
+      h("span", {}, ["Срок: "+fmtDate(t.dueDate)]),
+      h("span", {}, [t.comments.length ? h("span",{class:"comment-flag"},["💬 "+t.comments.length]) : ""])
+    ])
+  ]);
+  card.addEventListener("dragstart", function(ev){
+    ev.dataTransfer.setData("text/plain", t.id);
+  });
+  return card;
+}
+
+function renderBoard(){
+  if (state.ui.filterStatus === "overdue"){
+    var overdueTasks = filteredTasks();
+    if (!overdueTasks.length){
+      return h("div", {class:"placeholder"}, ["Просроченных задач нет 🎉"]);
+    }
+    return h("div", {class:"flat-list"}, overdueTasks.map(taskCard));
+  }
+
+  var tasks = filteredTasks();
+  var board = h("div", {class:"board"}, STATUSES.map(function(s){
+    var colTasks = tasks.filter(function(t){ return t.status===s.id && getEffectiveStatus(t)!=="overdue"; });
+    var list = h("div", {class:"card-list"}, colTasks.length ? colTasks.map(taskCard) : [h("div",{class:"empty-hint"},["Нет задач"])]);
+    var col = h("div", {class:"column"}, [
+      h("div", {class:"column-head"}, [s.label, h("span",{class:"cnt"},[String(colTasks.length)])]),
+      list
+    ]);
+    col.addEventListener("dragover", function(ev){ ev.preventDefault(); col.classList.add("dragover"); });
+    col.addEventListener("dragleave", function(){ col.classList.remove("dragover"); });
+    col.addEventListener("drop", function(ev){
+      ev.preventDefault();
+      col.classList.remove("dragover");
+      var id = ev.dataTransfer.getData("text/plain");
+      var task = getTask(id);
+      if (task){ task.status = s.id; persist(); render(); }
+    });
+    return col;
+  }));
+  return board;
+}
+
+/* ---- New task modal ---- */
+function renderNewTaskModal(){
+  var draft = state.ui.newTaskDraft || {title:"", description:"", department:"CA", assigneeId:"", dueDate:""};
+  state.ui.newTaskDraft = draft;
+  var errors = state.ui.newTaskErrors || {};
+
+  var deptEmployees = Employees.filter(function(e){ return e.department === draft.department; });
+  if (!draft.assigneeId && deptEmployees.length) draft.assigneeId = deptEmployees[0].id;
+
+  function field(labelText, inputEl, errKey){
+    var kids = [h("label",{},[labelText]), inputEl];
+    if (errors[errKey]) kids.push(h("div", {class:"error-text"}, [errors[errKey]]));
+    return h("div", {class:"field"}, kids);
+  }
+
+  var titleInput = h("input", {value:draft.title, oninput:function(e){ draft.title=e.target.value; }});
+  var descInput = h("textarea", {oninput:function(e){ draft.description=e.target.value; }}, [draft.description]);
+  var deptSelect = h("select", {onchange:function(e){ draft.department=e.target.value; draft.assigneeId=""; renderModalOnly(); }}, [
+    h("option", {value:"CA", selected:draft.department==="CA"}, ["Центральный аппарат"]),
+    h("option", {value:"Filial", selected:draft.department==="Filial"}, ["Филиал"])
+  ]);
+  var assigneeSelect = h("select", {onchange:function(e){ draft.assigneeId=e.target.value; }},
+    deptEmployees.map(function(e){ return h("option", {value:e.id, selected:draft.assigneeId===e.id}, [e.name + (e.branch?" ("+e.branch+")":"")]); })
+  );
+  var dueInput = h("input", {type:"date", value:draft.dueDate, oninput:function(e){ draft.dueDate=e.target.value; }});
+
+  function renderModalOnly(){ render(); }
+
+  function submit(){
+    var errs = {};
+    if (!draft.title.trim()) errs.title = "Укажите название задачи";
+    if (!draft.dueDate) errs.dueDate = "Укажите срок исполнения";
+    state.ui.newTaskErrors = errs;
+    if (Object.keys(errs).length){ render(); return; }
+    var newId = "t" + (Date.now());
+    state.tasks.push({
+      id:newId, title:draft.title.trim(), description:draft.description.trim(),
+      department:draft.department, assigneeId:draft.assigneeId, dueDate:draft.dueDate,
+      status:"new", comments:[]
+    });
+    state.ui.showNewTaskModal = false;
+    state.ui.newTaskDraft = null;
+    state.ui.newTaskErrors = {};
+    persist(); render();
+  }
+  function cancel(){
+    state.ui.showNewTaskModal = false;
+    state.ui.newTaskDraft = null;
+    state.ui.newTaskErrors = {};
+    render();
+  }
+
+  var modal = h("div", {class:"modal"}, [
+    h("h2", {}, ["Новое задание"]),
+    field("Название *", titleInput, "title"),
+    field("Описание", descInput),
+    h("div", {class:"row2"}, [
+      field("Подразделение", deptSelect),
+      field("Исполнитель", assigneeSelect)
+    ]),
+    field("Срок исполнения *", dueInput, "dueDate"),
+    h("div", {class:"modal-actions"}, [
+      h("button", {class:"btn-secondary", onclick:cancel}, ["Отмена"]),
+      h("button", {class:"btn-primary", onclick:submit}, ["Создать"])
+    ])
+  ]);
+  return h("div", {class:"modal-backdrop", onclick:function(e){ if(e.target===e.currentTarget) cancel(); }}, [modal]);
+}
+
+/* ---- Task detail modal ---- */
+function renderTaskModal(t){
+  if (!t) return h("div", {});
+  var emp = EmployeesById[t.assigneeId];
+  var eff = getEffectiveStatus(t);
+
+  function close(){ state.ui.selectedTaskId=null; render(); }
+
+  var statusSelect = h("select", {onchange:function(e){ t.status=e.target.value; persist(); render(); }},
+    STATUSES.map(function(s){ return h("option", {value:s.id, selected:t.status===s.id}, [s.label]); })
+  );
+  var dueInput = h("input", {type:"date", value:t.dueDate, onchange:function(e){ t.dueDate=e.target.value; persist(); render(); }});
+
+  var statusBadge = h("span", {class:"badge " + (eff==="overdue"?"overdue":(eff==="done"?"done":"dept-ca"))}, [STATUS_LABEL[eff]]);
+
+  var commentEls = t.comments.length
+    ? t.comments.map(function(c){
+        return h("div", {class:"comment"}, [
+          h("div", {class:"c-head"}, [c.author, fmtDate(c.date)]),
+          h("div", {}, [c.text])
+        ]);
+      })
+    : [h("div", {class:"no-comments"}, ["Комментариев пока нет"])];
+
+  var commentError = h("div", {class:"error-text hidden"}, ["Комментарий не может быть пустым"]);
+  var commentInput = h("textarea", {placeholder:"Добавить комментарий..."});
+  var addCommentBtn = h("button", {class:"btn-primary", onclick:function(){
+    var val = commentInput.value.trim();
+    if (!val){ commentError.classList.remove("hidden"); return; }
+    t.comments.push({id:"c"+Date.now(), author: emp?emp.name:"Исполнитель", date: todayISO(), text: val});
+    persist(); render();
+  }}, ["Отправить"]);
+
+  var modal = h("div", {class:"modal"}, [
+    h("h2", {}, [t.title]),
+    h("div", {style:"margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap"}, [
+      h("span", {class:"badge " + (t.department==="CA"?"dept-ca":"dept-filial")}, [t.department==="CA"?"ЦА":"Филиал"]),
+      statusBadge
+    ]),
+    h("div", {class:"field"}, [h("label",{},["Описание"]), h("div",{},[t.description || "—"])]),
+    h("div", {class:"field"}, [h("label",{},["Исполнитель"]), h("div",{},[emp ? emp.name + (emp.branch?" ("+emp.branch+")":"") : "—"])]),
+    h("div", {class:"row2"}, [
+      h("div", {class:"field"}, [h("label",{},["Срок исполнения"]), dueInput]),
+      h("div", {class:"field"}, [h("label",{},["Статус"]), statusSelect])
+    ]),
+    h("div", {class:"comments"}, [
+      h("h3", {style:"margin:0 0 10px;font-size:14px"}, ["Обратная связь"]),
+      h("div", {}, commentEls),
+      h("div", {class:"field", style:"margin-top:12px"}, [commentInput, commentError]),
+      h("div", {class:"modal-actions"}, [addCommentBtn])
+    ]),
+    h("div", {class:"modal-actions"}, [
+      h("button", {class:"btn-secondary", onclick:close}, ["Закрыть"])
+    ])
+  ]);
+  return h("div", {class:"modal-backdrop", onclick:function(e){ if(e.target===e.currentTarget) close(); }}, [modal]);
+}
+
+/* ---- Weekly review ---- */
+function renderWeekly(){
+  var offset = state.ui.weekOffset;
+  var range = getWeekRange(offset);
+  var weekTasks = tasksInWeek(offset);
+
+  var done = weekTasks.filter(function(t){ return t.status==="done"; }).length;
+  var overdue = weekTasks.filter(function(t){ return getEffectiveStatus(t)==="overdue"; }).length;
+  var notDone = weekTasks.filter(function(t){ return t.status!=="done"; }).length;
+  var total = weekTasks.length;
+  var pct = total ? Math.round(done/total*100) : 0;
+
+  function pctFor(deptTasks){
+    var d = deptTasks.filter(function(t){return t.status==="done";}).length;
+    return deptTasks.length ? Math.round(d/deptTasks.length*100) : 0;
+  }
+  var caTasks = weekTasks.filter(function(t){ return t.department==="CA"; });
+  var filialTasks = weekTasks.filter(function(t){ return t.department==="Filial"; });
+
+  var nav = h("div", {class:"week-nav"}, [
+    h("button", {class:"btn-secondary", onclick:function(){ state.ui.weekOffset--; render(); }}, ["← Пред. неделя"]),
+    h("div", {class:"range"}, [fmtDate(range.start)+" — "+fmtDate(range.end)]),
+    h("button", {class:"btn-secondary", onclick:function(){ state.ui.weekOffset++; render(); }}, ["След. неделя →"]),
+    offset!==0 ? h("button", {class:"btn-secondary", onclick:function(){ state.ui.weekOffset=0; render(); }}, ["Текущая неделя"]) : null
+  ]);
+
+  var summary = h("div", {class:"weekly-grid"}, [
+    statCard(String(pct)+"%", "Процент выполнения"),
+    statCard(String(done), "Выполнено"),
+    statCard(String(overdue), "Просрочено"),
+    statCard(String(notDone), "Не завершено")
+  ]);
+
+  function deptBlock(label, tasksArr){
+    var p = pctFor(tasksArr);
+    return h("div", {class:"list-panel"}, [
+      h("h3", {}, [label + " — " + p + "% (" + tasksArr.length + " задач)"]),
+      h("div", {class:"progress-outer"}, [h("div", {class:"progress-inner", style:"width:"+p+"%"}, [])])
+    ]);
+  }
+  var breakdown = h("div", {class:"dept-breakdown"}, [
+    deptBlock("Центральный аппарат", caTasks),
+    deptBlock("Филиалы", filialTasks)
+  ]);
+
+  function taskRow(t){
+    var emp = EmployeesById[t.assigneeId];
+    return h("div", {class:"list-row", onclick:function(){ state.ui.selectedTaskId=t.id; render(); }}, [
+      h("span", {}, [t.title]),
+      h("span", {class:"name"}, [(emp?emp.name:"—") + " · " + fmtDate(t.dueDate)])
+    ]);
+  }
+  var doneTasks = weekTasks.filter(function(t){ return t.status==="done"; });
+  var notDoneTasks = weekTasks.filter(function(t){ return t.status!=="done"; });
+
+  var lists = h("div", {class:"two-col-lists"}, [
+    h("div", {class:"list-panel"}, [
+      h("h3", {}, ["Выполнено ("+doneTasks.length+")"]),
+      doneTasks.length ? h("div",{},doneTasks.map(taskRow)) : h("div",{class:"no-comments"},["Нет задач"])
+    ]),
+    h("div", {class:"list-panel"}, [
+      h("h3", {}, ["Не выполнено ("+notDoneTasks.length+")"]),
+      notDoneTasks.length ? h("div",{},notDoneTasks.map(taskRow)) : h("div",{class:"no-comments"},["Нет задач"])
+    ])
+  ]);
+
+  return h("div", {}, [nav, summary, breakdown, lists]);
+}
+function statCard(n,l){
+  return h("div", {class:"stat-card"}, [h("div",{class:"n"},[n]), h("div",{class:"l"},[l])]);
+}
+
+/* ---- Employee view ---- */
+function renderEmployeeView(){
+  var caList = Employees.filter(function(e){ return e.department==="CA"; });
+  var filialList = Employees.filter(function(e){ return e.department==="Filial"; });
+
+  var select = h("select", {onchange:function(e){ state.ui.selectedEmployeeId=e.target.value; render(); }}, [
+    h("option", {value:"", selected: state.ui.selectedEmployeeId===""}, ["Выберите сотрудника..."]),
+    h("optgroup", {label:"Центральный аппарат"}, caList.map(function(e){
+      return h("option", {value:e.id, selected:state.ui.selectedEmployeeId===e.id}, [e.name]);
+    })),
+    h("optgroup", {label:"Филиалы"}, filialList.map(function(e){
+      return h("option", {value:e.id, selected:state.ui.selectedEmployeeId===e.id}, [e.name + " ("+e.branch+")"]);
+    }))
+  ]);
+
+  var wrap = h("div", {}, [h("div", {class:"employee-select-wrap"}, [select])]);
+
+  if (!state.ui.selectedEmployeeId){
+    wrap.appendChild(h("div", {class:"placeholder"}, ["Выберите сотрудника из списка, чтобы посмотреть его задачи."]));
+    return wrap;
+  }
+  var emp = EmployeesById[state.ui.selectedEmployeeId];
+  if (!emp){ return wrap; }
+
+  var empTasks = state.tasks.filter(function(t){ return t.assigneeId===emp.id; });
+  var total = empTasks.length;
+  var doneCount = empTasks.filter(function(t){return t.status==="done";}).length;
+  var overdueCount = empTasks.filter(function(t){return getEffectiveStatus(t)==="overdue";}).length;
+  var inProgressCount = total - doneCount - overdueCount;
+  var pct = total ? Math.round(doneCount/total*100) : 0;
+
+  wrap.appendChild(h("div", {class:"profile-card"}, [
+    h("div", {class:"avatar"}, [initials(emp.name)]),
+    h("div", {}, [
+      h("div", {class:"profile-name"}, [emp.name]),
+      h("div", {class:"profile-dept"}, [emp.department==="CA" ? "Центральный аппарат" : "Филиал: "+emp.branch])
+    ])
+  ]));
+
+  wrap.appendChild(h("div", {class:"emp-stats"}, [
+    statCard(String(total), "Всего задач"),
+    statCard(String(doneCount), "Выполнено"),
+    statCard(String(inProgressCount), "В работе"),
+    statCard(String(overdueCount), "Просрочено")
+  ]));
+
+  wrap.appendChild(h("div", {class:"emp-progress"}, [
+    h("div", {}, ["Процент выполнения: "+pct+"%"]),
+    h("div", {class:"progress-outer"}, [h("div", {class:"progress-inner", style:"width:"+pct+"%"}, [])])
+  ]));
+
+  var sorted = empTasks.slice().sort(function(a,b){ return a.dueDate < b.dueDate ? -1 : 1; });
+  var rows = sorted.map(function(t){
+    var eff = getEffectiveStatus(t);
+    var tr = h("tr", {class:"rowclick", onclick:function(){ state.ui.selectedTaskId=t.id; render(); }}, [
+      h("td", {}, [t.title]),
+      h("td", {}, [fmtDate(t.dueDate)]),
+      h("td", {}, [STATUS_LABEL[eff]])
+    ]);
+    return tr;
+  });
+  var table = h("table", {class:"task-table"}, [
+    h("thead", {}, [h("tr", {}, [h("th",{},["Задача"]), h("th",{},["Срок"]), h("th",{},["Статус"])])]),
+    h("tbody", {}, rows.length ? rows : [h("tr",{},[h("td",{colspan:"3", class:"no-comments"},["Нет задач"])])])
+  ]);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+/* ---------- Init ---------- */
+loadState();
+render();
+
+})();
+</script>
+</body>
+</html>
